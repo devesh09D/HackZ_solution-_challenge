@@ -19,7 +19,16 @@ api.interceptors.request.use(
 api.interceptors.response.use(
   (response) => response.data,
   (error) => {
-    const message = error.response?.data?.detail || error.message || 'Request failed'
+    let message = 'Request failed'
+    const detail = error.response?.data?.detail
+    if (typeof detail === 'string') {
+      message = detail
+    } else if (Array.isArray(detail)) {
+      // FastAPI validation errors return an array of {loc, msg, type} objects
+      message = detail.map(e => e.msg || JSON.stringify(e)).join('; ')
+    } else if (error.message) {
+      message = error.message
+    }
     return Promise.reject(new Error(message))
   }
 )

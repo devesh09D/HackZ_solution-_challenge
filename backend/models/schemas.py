@@ -16,6 +16,7 @@ class NeedType(str, Enum):
     education = "education"
     sanitation = "sanitation"
     rescue = "rescue"
+    other = "other"
 
 
 class Urgency(str, Enum):
@@ -31,8 +32,8 @@ class TaskStatus(str, Enum):
 
 
 class Location(BaseModel):
-    lat: float
-    lng: float
+    lat: Optional[float] = None
+    lng: Optional[float] = None
     address: str = ""
 
 
