@@ -37,18 +37,20 @@ Extract structured information from the following field worker voice report.
 Voice Report: "{transcript}"
 
 Return a JSON object with exactly these fields:
-- need_type: one of [food, water, shelter, medical, clothing, education, sanitation, rescue]
+- need_type: one of [food, water, shelter, medical, clothing, education, sanitation, rescue, other]
 - location: {{ "lat": <float>, "lng": <float>, "address": "<city, state>" }}
 - urgency: one of [high, medium, low]
 - people_affected: <integer>
 - description: <1-2 sentence clear description of the situation>
 
-If location is not clear, use Delhi, India coordinates (28.6139, 77.2090).
-If people_affected is not mentioned, estimate based on context (default 50).
+Guidelines:
+- If the report is just a greeting or does not mention any actual emergency/need (e.g., "hi this is..."), set need_type to "other", urgency to "low", people_affected to 0, and location to nulls/Unknown. Do NOT hallucinate locations or emergencies.
+- If location is not clearly mentioned, set location to {{ "lat": null, "lng": null, "address": "Unknown Location" }}.
+- If people_affected is not mentioned, estimate based on context (default 50).
 Respond ONLY with valid JSON, no explanation."""
 
         response = client.chat.completions.create(
-            model="llama3-8b-8192",
+            model="llama-3.1-8b-instant",
             messages=[{"role": "user", "content": prompt}],
             temperature=0.1,
             max_tokens=400,
@@ -92,11 +94,10 @@ def _mock_extract(transcript: str) -> dict:
     scores = {}
     for nt, keywords in need_keywords.items():
         scores[nt] = sum(1 for kw in keywords if kw in transcript_lower)
-    # Pick the category with the highest score; default to "sanitation" if tie/zero
-    # (drainage reports are most commonly misclassified, so bias toward sanitation on 0-score)
+    # Pick the category with the highest score; default to "general" if no keywords matched
     best_score = max(scores.values())
     if best_score == 0:
-        need_type = "sanitation"  # safer default than food for NGO context
+        need_type = "general"  # no keywords matched — report is unclear
     else:
         # Among tied winners, prefer the first in priority order
         priority = ["rescue", "medical", "sanitation", "water", "shelter", "food", "clothing", "education", "flood"]
@@ -141,7 +142,7 @@ def _mock_extract(transcript: str) -> dict:
         "patna": (25.5941, 85.1376, "Patna, Bihar"),
         "bhopal": (23.2599, 77.4126, "Bhopal, Madhya Pradesh"),
     }
-    lat, lng, address = 28.6139, 77.2090, "Delhi"
+    lat, lng, address = None, None, "Unknown Location"
     for city_name, coords in cities.items():
         if city_name in transcript_lower:
             lat, lng, address = coords
@@ -154,9 +155,14 @@ def _mock_extract(transcript: str) -> dict:
         else f"Emergency {need_type} assistance required. Approximately {people_affected} people affected."
     )
 
+    location = {"address": address}
+    if lat is not None and lng is not None:
+        location["lat"] = lat
+        location["lng"] = lng
+
     return {
         "need_type": need_type,
-        "location": {"lat": lat, "lng": lng, "address": address},
+        "location": location,
         "urgency": urgency,
         "people_affected": people_affected,
         "description": description,

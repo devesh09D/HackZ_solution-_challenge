@@ -32,7 +32,7 @@ export default function FieldWorker() {
   const [toast, setToast] = useState(null)
   const [error, setError] = useState(null)
   const recognitionRef = useRef(null)
-  const interimRef = useRef('')
+  const [interimTranscript, setInterimTranscript] = useState('')
 
   // Show toast notification
   const showToast = (msg, type = 'success') => {
@@ -60,16 +60,18 @@ export default function FieldWorker() {
       let interim = '', final = ''
       for (let i = e.resultIndex; i < e.results.length; i++) {
         const t = e.results[i][0].transcript
-        if (e.results[i].isFinal) final += t
+        if (e.results[i].isFinal) final += t + ' '
         else interim += t
       }
-      interimRef.current = interim
-      setTranscript((prev) => prev + final)
+      setInterimTranscript(interim)
+      if (final) {
+        setTranscript((prev) => prev + final)
+      }
     }
 
     recognition.onend = () => {
       setIsRecording(false)
-      interimRef.current = ''
+      setInterimTranscript('')
     }
 
     recognition.onerror = (e) => {
@@ -86,6 +88,7 @@ export default function FieldWorker() {
   const stopRecording = () => {
     recognitionRef.current?.stop()
     setIsRecording(false)
+    setInterimTranscript('')
   }
 
   const toggleRecording = () => {
@@ -251,8 +254,8 @@ export default function FieldWorker() {
                   Transcript will appear here as you speak...
                 </span>
               )}
-              {isRecording && interimRef.current && (
-                <span className="text-slate-500 italic"> {interimRef.current}</span>
+              {isRecording && interimTranscript && (
+                <span className="text-slate-500 italic"> {interimTranscript}</span>
               )}
             </div>
 

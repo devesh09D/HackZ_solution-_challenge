@@ -21,6 +21,18 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+from contextlib import asynccontextmanager
+
+# ── Lifecycle ─────────────────────────────────────────────────────────────────
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Initialize data store with mock data and train the prediction model."""
+    logger.info("🚀 Starting SevAI API server...")
+    init_store()
+    load_model()
+    logger.info("✅ SevAI API ready at http://localhost:8000")
+    yield
+
 # ── FastAPI App ───────────────────────────────────────────────────────────────
 app = FastAPI(
     title="SevAI API",
@@ -33,7 +45,7 @@ app = FastAPI(
 # CORS — allow React dev server and production origins
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173", "http://localhost:3000", "http://localhost:4173", "*"],
+    allow_origins=["http://localhost:5173", "http://localhost:3000", "http://localhost:4173"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -44,16 +56,6 @@ app.include_router(voice.router, prefix="/api", tags=["Voice Input"])
 app.include_router(tasks.router, prefix="/api", tags=["Tasks"])
 app.include_router(volunteers.router, prefix="/api", tags=["Volunteers"])
 app.include_router(predictions.router, prefix="/api", tags=["Predictions"])
-
-
-# ── Lifecycle ─────────────────────────────────────────────────────────────────
-@app.on_event("startup")
-async def startup_event():
-    """Initialize data store with mock data and train the prediction model."""
-    logger.info("🚀 Starting SevAI API server...")
-    init_store()
-    load_model()
-    logger.info("✅ SevAI API ready at http://localhost:8000")
 
 
 # ── Health endpoints ──────────────────────────────────────────────────────────

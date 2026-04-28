@@ -82,6 +82,18 @@ def _seed_firestore_if_empty():
     logger.info(f"✅ Seeded {len(MOCK_TASKS)} tasks and {len(MOCK_VOLUNTEERS)} volunteers into Firestore.")
 
 
+def _seed_in_memory():
+    """Seed the in-memory store with mock data."""
+    from data.seed_data import MOCK_TASKS, MOCK_VOLUNTEERS
+    if not _store["tasks"]:
+        for task in MOCK_TASKS:
+            _store["tasks"][task["id"]] = copy.deepcopy(task)
+    if not _store["volunteers"]:
+        for vol in MOCK_VOLUNTEERS:
+            _store["volunteers"][vol["id"]] = copy.deepcopy(vol)
+    logger.info(f"✅ Seeded in-memory store with {len(MOCK_TASKS)} tasks and {len(MOCK_VOLUNTEERS)} volunteers.")
+
+
 # ── Generic CRUD ─────────────────────────────────────────────────────────────
 
 def get_all(collection: str) -> List[dict]:
