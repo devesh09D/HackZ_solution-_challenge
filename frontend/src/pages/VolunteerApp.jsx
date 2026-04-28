@@ -27,6 +27,7 @@ export default function VolunteerApp() {
   const [myVolunteer, setMyVolunteer] = useState(null)
   const [activeTab, setActiveTab] = useState('available') // 'available' | 'active' | 'completed'
   const [selectedTask, setSelectedTask] = useState(null)
+  const [declinedTasks, setDeclinedTasks] = useState(new Set())
   const [feedbackModal, setFeedbackModal] = useState(null)
   const [rating, setRating] = useState(5)
   const [loading, setLoading] = useState(true)
@@ -45,8 +46,23 @@ export default function VolunteerApp() {
       const vols = volsRes.volunteers || []
       setTasks(allTasks)
       setVolunteers(vols)
-      // Use first volunteer as "me" for demo
-      if (vols.length > 0 && !myVolunteer) setMyVolunteer(vols[0])
+      // Use first volunteer as "me" for demo, or create a mock one if empty
+      if (!myVolunteer) {
+        if (vols.length > 0) {
+          setMyVolunteer(vols[0])
+        } else {
+          setMyVolunteer({
+            id: 'mock-vol-1',
+            name: 'Demo Volunteer',
+            location: { city: 'Demo City', lat: 20, lng: 78 },
+            availability: true,
+            trust_score: 0.85,
+            tasks_completed: 0,
+            rating: 5.0,
+            skills: ['general']
+          })
+        }
+      }
     } catch (e) {
       console.error(e)
     } finally {
@@ -61,6 +77,7 @@ export default function VolunteerApp() {
   }, [load])
 
   const filteredTasks = tasks.filter((t) => {
+    if (declinedTasks.has(t.id)) return false
     if (activeTab === 'available') return t.status === 'pending'
     if (activeTab === 'active') return t.status === 'active'
     if (activeTab === 'completed') return t.status === 'completed'
@@ -68,10 +85,22 @@ export default function VolunteerApp() {
   })
 
   const handleAccept = async (task) => {
-    if (!myVolunteer) return
+    if (!myVolunteer) {
+      showToast('No volunteer profile found', 'error')
+      return
+    }
     try {
-      await acceptTask(task.id, myVolunteer.id)
+      // Optimistic update
+      setTasks(prev => prev.map(t => t.id === task.id ? { ...t, status: 'active', assigned_volunteer_id: myVolunteer.id } : t))
       showToast(`✅ You accepted the ${task.need_type} task!`)
+      
+      // If it's a mock volunteer, don't actually hit the backend
+      if (myVolunteer.id === 'mock-vol-1') {
+        setSelectedTask(null)
+        return
+      }
+
+      await acceptTask(task.id, myVolunteer.id)
       setSelectedTask(null)
       load()
     } catch (e) {
@@ -80,6 +109,7 @@ export default function VolunteerApp() {
   }
 
   const handleReject = (task) => {
+    setDeclinedTasks(prev => new Set([...prev, task.id]))
     setSelectedTask(null)
     showToast('Task declined.', 'info')
   }
