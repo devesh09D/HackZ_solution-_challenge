@@ -1,7 +1,7 @@
 """
 SevAI - Pydantic schemas for all data models.
 """
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, validator
 from typing import Optional, List
 from datetime import datetime
 from enum import Enum
@@ -52,13 +52,37 @@ class Task(BaseModel):
 
 
 class CreateTaskRequest(BaseModel):
-    need_type: str
-    location: Location
-    urgency: str
-    people_affected: int
-    description: str
+    need_type: str = "other"
+    location: Optional[Location] = None
+    urgency: str = "medium"
+    people_affected: Optional[int] = 50
+    description: str = ""
     duration_hours: int = 4
     estimated_volunteers: int = 1
+
+    @validator('people_affected', pre=True, always=True)
+    def coerce_people_affected(cls, v):
+        """Handle LLM returning strings like '300', '~300', or floats."""
+        if v is None:
+            return 50
+        if isinstance(v, (int, float)):
+            return int(v)
+        if isinstance(v, str):
+            import re
+            nums = re.findall(r'\d+', v)
+            return int(nums[0]) if nums else 50
+        return 50
+
+    @validator('location', pre=True, always=True)
+    def coerce_location(cls, v):
+        """Handle location being a string, None, or a dict."""
+        if v is None:
+            return Location()
+        if isinstance(v, str):
+            return Location(address=v)
+        if isinstance(v, dict):
+            return Location(**{k: v2 for k, v2 in v.items() if k in ('lat', 'lng', 'address')})
+        return v
 
 
 class UpdateStatusRequest(BaseModel):

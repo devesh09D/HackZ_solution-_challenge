@@ -41,7 +41,7 @@ async def create_task(request: CreateTaskRequest):
     task = {
         "id": task_id,
         "need_type": request.need_type,
-        "location": request.location.model_dump(),
+        "location": request.location.model_dump() if request.location else {"lat": None, "lng": None, "address": "Unknown"},
         "urgency": request.urgency,
         "people_affected": request.people_affected,
         "description": request.description,
