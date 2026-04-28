@@ -45,7 +45,7 @@ app = FastAPI(
 # CORS — allow React dev server and production origins
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173", "http://localhost:3000", "http://localhost:4173"],
+    allow_origins=["*"],  # Allow all origins (Vercel + localhost)
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
